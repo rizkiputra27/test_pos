@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="img/logo.ico" type="image/png">
+<title>GARUDA POS - Dashboard POS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Poppins',sans-serif;}
+body{color:white;background:#020617;}
+
+/* BACKGROUND */
+.bg{
+  position:fixed;width:100%;height:100%;
+  background:linear-gradient(135deg,#0f172a,#020617);z-index:-2;
+}
+
+/* HEADER */
+.header{padding:20px;}
+.header h2{font-weight:600;}
+.header small{opacity:.7;}
+
+/* CONTAINER */
+.container{padding:20px}
+
+/* QUICK MENU */
+.quick{
+  display:flex;
+  gap:10px;
+  margin-bottom:20px;
+}
+.quick a{
+  flex:1;
+  padding:20px;
+  border-radius:16px;
+  text-align:center;
+  text-decoration:none;
+  color:white;
+  font-size:16px;
+  font-weight:600;
+  background:linear-gradient(135deg,#38bdf8,#0ea5e9);
+  box-shadow:0 8px 20px rgba(56,189,248,0.5);
+  transition:.3s;
+}
+.quick a:hover{
+  transform:translateY(-5px);
+  box-shadow:0 12px 25px rgba(56,189,248,0.6);
+}
+.quick i{font-size:28px;margin-bottom:8px;display:block;}
+
+/* MENU GRID */
+.section-title{margin:20px 0 8px;font-size:13px;opacity:.7;}
+.menu-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+  margin-bottom:20px;
+}
+.menu-card{
+  padding:18px;
+  border-radius:16px;
+  text-align:center;
+  text-decoration:none;
+  color:white;
+  background:rgba(255,255,255,0.07);
+  backdrop-filter:blur(15px);
+  box-shadow:0 6px 20px rgba(0,0,0,0.4);
+  transition:.3s;
+}
+.menu-card i{display:block;margin-bottom:8px;font-size:22px;}
+.menu-card:hover{
+  transform:translateY(-6px) scale(1.05);
+  background:rgba(255,255,255,0.12);
+  box-shadow:0 12px 28px rgba(0,0,0,0.5);
+}
+
+/* ICON COLORS */
+.red{color:#f87171;}
+.blue{color:#38bdf8;}
+.green{color:#4ade80;}
+.yellow{color:#facc15;}
+
+/* BOTTOM NAV */
+.bottom-nav{
+  display:flex;
+  justify-content:space-around;
+  background:rgba(0,0,0,0.75);
+  padding:12px 0;
+  position:sticky;bottom:0;
+}
+.bottom-nav a{
+  color:white;text-decoration:none;font-size:12px;text-align:center;
+}
+.bottom-nav i{display:block;margin-bottom:3px;}
+</style>
+</head>
+<body>
+
+<div class="bg"></div>
+
+<div class="header">
+  <h2>KASIR KU</h2>
+  <small id="jam"></small>
+  <h3>Note: Setelah Transaksi wajib Backup sebelum hapus data</h3>
+</div>
+
+<div class="container">
+
+  <!-- QUICK MENU -->
+  <div class="quick">
+    <a href="pulsa.html"><i class="fas fa-mobile-alt blue"></i>Pulsa</a>
+    <a href="tf.html"><i class="fas fa-university green"></i>TF</a>
+    <a href="tartun.html"><i class="fas fa-wallet yellow"></i>Tarik</a>
+  </div>
+
+  <!-- MENU UTAMA -->
+  <div class="section-title">Menu Utama</div>
+  <div class="menu-grid">
+    <a href="pengeluaran.html" class="menu-card"><i class="fas fa-money-bill-wave red"></i>Pengeluaran</a>
+    <a href="database.html" class="menu-card"><i class="fas fa-database blue"></i>Database</a>
+    <a href="backup.html" class="menu-card"><i class="fas fa-file-export green"></i>Backup</a>
+    <a href="laci.html" class="menu-card"><i class="fas fa-chart-pie yellow"></i>Laporan</a>
+  </div>
+
+  <!-- ADMIN -->
+  <div class="section-title">Admin</div>
+  <div class="menu-grid">
+    <a href="admin_tf.html" class="menu-card"><i class="fas fa-cogs green"></i>Admin TF</a>
+    <a href="admin_pulsa.html" class="menu-card"><i class="fas fa-cogs blue"></i>Admin Pulsa</a>
+  </div>
+
+</div>
+
+<div class="bottom-nav">
+  <a href="#"><i class="fas fa-home"></i>Home</a>
+  <a href="tf.html"><i class="fas fa-exchange-alt"></i>TF</a>
+  <a href="pulsa.html"><i class="fas fa-signal"></i>Pulsa</a>
+</div>
+
+<script>
+// JAM
+setInterval(()=>{
+  document.getElementById("jam").innerText = new Date().toLocaleString('id-ID');
+},1000);
+</script>
+
+</body>
+</html>

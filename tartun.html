@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Transaksi Tarik Tunai</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { font-family: Arial; padding: 20px; background: #f4f4f4; }
+    form, table { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 30px; }
+    input, button { padding: 8px; margin: 5px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #f0f0f0; }
+    .summary { font-weight: bold; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+<h2>Catatan Transaksi Tarik Tunai</h2>
+
+<form id="formTarik">
+  <input type="date" id="tgl" required>
+  <input type="text" id="keterangan" placeholder="Keterangan (opsional)">
+  <input type="number" id="nominal" placeholder="Nominal Tarik" required>
+  <input type="number" id="admin" placeholder="Admin" required>
+  <input type="text" id="total" placeholder="Total" readonly>
+  <button type="submit">Tambah</button>
+
+</form>
+
+<table id="tarikTable">
+  <thead>
+    <tr>
+      <th>No</th>
+      <th>Tanggal</th>
+      <th>Keterangan</th>
+      <th>Nominal</th>
+      <th>Admin</th>
+      <th>Total</th>
+      <th>Aksi</th>
+    </tr>
+  </thead>
+  <tbody id="tabelData"></tbody>
+</table>
+
+<div class="summary">
+  Total Admin: <span id="sumAdmin">0</span> | Total: <span id="sumTotal">0</span>
+</div>
+
+<button onclick="exportToExcel()">📤 Export ke Excel</button>
+<button onclick="hapusSemua()">🗑️ Hapus Semua</button>
+
+<script>
+  const form = document.getElementById('formTarik');
+  const tbody = document.getElementById('tabelData');
+  const totalEl = document.getElementById('total');
+  const sumAdminEl = document.getElementById('sumAdmin');
+  const sumTotalEl = document.getElementById('sumTotal');
+
+  document.getElementById('tgl').valueAsDate = new Date();
+
+  let data = JSON.parse(localStorage.getItem('tarikData')) || [];
+  let no = data.length > 0 ? data[data.length - 1].No + 1 : 1;
+  let editIndex = -1;
+
+  document.getElementById('admin').addEventListener('input', updateTotal);
+  document.getElementById('nominal').addEventListener('input', updateTotal);
+
+  function updateTotal() {
+    const nominal = parseInt(document.getElementById('nominal').value) || 0;
+    const admin = parseInt(document.getElementById('admin').value) || 0;
+    totalEl.value = nominal - admin;
+  }
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const tgl = document.getElementById('tgl').value;
+    const nominal = parseInt(document.getElementById('nominal').value);
+    const admin = parseInt(document.getElementById('admin').value);
+    const total = nominal - admin;
+    const ket = document.getElementById('keterangan').value;
+
+    if (editIndex === -1) {
+      const row = { No: no++, Tanggal: tgl, Nominal: nominal, Admin: admin, Total: total, Keterangan: ket };
+      data.push(row);
+    } else {
+      data[editIndex] = {
+        ...data[editIndex],
+        Tanggal: tgl,
+        Nominal: nominal,
+        Admin: admin,
+        Total: total,
+        Keterangan: ket
+      };
+      editIndex = -1;
+      form.querySelector('button[type="submit"]').textContent = 'Tambah';
+    }
+
+    localStorage.setItem('tarikData', JSON.stringify(data));
+    tampilkanData();
+    form.reset();
+    document.getElementById('tgl').valueAsDate= new Date() ;
+    totalEl.value = '';
+    document.getElementById('keterangan').focus();
+  });
+
+  function tampilkanData() {
+    tbody.innerHTML = '';
+    let sumAdmin = 0, sumTotal = 0;
+    data.forEach((d, index) => {
+      tbody.innerHTML += `
+        <tr>
+          <td>${d.No}</td>
+          <td>${d.Tanggal}</td>
+          <td>${d.Keterangan || ''}</td>
+          <td>${d.Nominal}</td>
+          <td>${d.Admin}</td>
+          <td>${d.Total}</td>
+          <td>
+            <button onclick="editBaris(${index})">✏️ Edit</button>
+            <button onclick="hapusBaris(${index})" class="btn-danger">🗑️</button></td></td>
+          </tr>`;
+      sumAdmin += d.Admin;
+      sumTotal += d.Nominal;
+    });
+    sumAdminEl.textContent = sumAdmin;
+    sumTotalEl.textContent = sumTotal;
+  }
+
+  function editBaris(index) {
+    const d = data[index];
+    document.getElementById('tgl').value = d.Tanggal;
+    document.getElementById('keterangan').value = d.Keterangan || '';
+    document.getElementById('nominal').value = d.Nominal;
+    document.getElementById('admin').value = d.Admin;
+    document.getElementById('total').value = d.Total;
+    editIndex = index;
+    form.querySelector('button[type="submit"]').textContent = 'Update';
+  }
+function hapusBaris(index) {
+  if (confirm("Hapus data ini?")) {
+    data.splice(index, 1);
+    localStorage.setItem('tarikData', JSON.stringify(data));
+    tampilkanData(data);
+  }
+}
+
+  function exportToExcel() {
+    if (data.length === 0) return alert("Belum ada data!");
+    const sheetData = data.map(d => [d.No, d.Tanggal, d.Keterangan || '', d.Nominal, d.Admin, d.Total]);
+    const jumlahBaris = sheetData.length + 1;
+    sheetData.push(["Total", "", "", { f: `SUM(D2:D${jumlahBaris})` }, { f: `SUM(E2:E${jumlahBaris})` }, ""]);
+    const header = ["No", "Tanggal", "Keterangan", "Nominal", "Admin", "Total"];
+    sheetData.unshift(header);
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Tarik Tunai");
+    XLSX.writeFile(wb, "tarik_tunai.xlsx");
+  }
+
+  function hapusSemua() {
+    if (confirm("Yakin hapus semua data?")) {
+      localStorage.removeItem('tarikData');
+      data = [];
+      no = 1;
+      tampilkanData();
+    }
+  }
+
+  tampilkanData();
+</script>
+
+</body>
+</html>

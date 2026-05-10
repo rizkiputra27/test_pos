@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" href="img/logo.ico" type="image/png">
+  <title>Transaksi TF - Versi Lengkap</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { font-family: Arial; padding: 20px; background: #f4f4f4; }
+    form { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 30px; }
+    input, select, button { padding: 8px; margin: 5px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #f0f0f0; }
+    .summary { margin-top: 20px; font-weight: bold; }
+    .btn-group button {
+      background-color: #2196F3;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      margin-top: 15px;
+      cursor: pointer;
+    }
+    .btn-danger { background-color: #f44336; }
+    #search {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 20px;
+      border: 2px solid #ccc;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Catatan Transaksi Transfer</h2>
+
+<form id="formTF">
+  <input type="date" id="tgl" required>
+  <input type="text" id="nohp" placeholder="keterangan" required>
+<select id="bank" required>
+  <option disabled selected>Pilih Bank</option>
+</select>
+  <input type="number" id="nominal" placeholder="Nominal TF" required>
+  <input type="text" id="feeAuto" placeholder="Fee Admin" readonly>
+  <input type="text" id="totalAuto" placeholder="Total (Nominal + Fee)" readonly>
+  <input type="text" id="marginAuto" placeholder="Margin (Total - Nominal)" readonly>
+  <button type="submit">Tambah</button>
+</form>
+
+<input type="text" id="search" placeholder="🔍 Cari berdasarkan No HP...">
+
+<table id="tfTable">
+  <thead>
+    <tr>
+      <th>No</th>
+      <th>Tanggal</th>
+      <th>Penyetor</th>
+      <th>Bank</th>
+      <th>Nominal TF</th>
+      <th>Fee Admin</th>
+      <th>Total</th>
+      <th>Margin</th>
+      <th>Aksi</th>
+    </tr>
+  </thead>
+  <tbody id="tabelData"></tbody>
+</table>
+
+<div class="summary">
+  Total Nominal: <span id="totalNominal">0</span> |
+  Total Fee Admin: <span id="totalFee">0</span> |
+  Total Keseluruhan: <span id="totalTotal">0</span> |
+  Total Margin: <span id="totalMargin">0</span>
+</div>
+
+<div class="btn-group">
+  <button onclick="exportToExcel()">📤 Download Excel (.xlsx)</button>
+  <button class="btn-danger" onclick="hapusSemua()">🗑️ Hapus Semua Data</button>
+</div>
+
+<script>
+  const API_URL = "http://127.0.0.1:5000/transaksi";
+  const form = document.getElementById('formTF');
+  const tbody = document.getElementById('tabelData');
+  const searchInput = document.getElementById('search');
+  const bankInput = document.getElementById('bank');
+  const nominalInput = document.getElementById('nominal');
+  const feeAuto = document.getElementById('feeAuto');
+  const totalAuto = document.getElementById('totalAuto');
+  const marginAuto = document.getElementById('marginAuto');
+
+  const totalNominalEl = document.getElementById('totalNominal');
+  const totalFeeEl = document.getElementById('totalFee');
+  const totalTotalEl = document.getElementById('totalTotal');
+  const totalMarginEl = document.getElementById('totalMargin');
+
+  document.getElementById('tgl').valueAsDate = new Date();
+
+  let data = []; // Data sekarang diambil dari database
+  const feeData = JSON.parse(localStorage.getItem('feeData')) || [];
+
+  // Fungsi memuat bank (tetap dari localStorage master fee)
+  function loadBankDropdown() {
+    const select = document.getElementById('bank');
+    select.innerHTML = '<option disabled selected>Pilih Bank</option>';
+    feeData.forEach(b => {
+      select.innerHTML += `<option value="${b.bank}">${b.bank}</option>`;
+    });
+  }
+
+  // Ambil fee berdasarkan range (logika tetap sama)
+  function getAdminFee(bank, nominal) {
+    nominal = parseInt(nominal);
+    const found = feeData.find(b => b.bank === bank);
+    if (!found) return 0;
+    for (let r of found.rules) {
+      if (nominal >= r.min && nominal <= r.max) return r.fee;
+    }
+    return 0;
+  }
+
+  // Fungsi ambil data dari MySQL via Python
+  async function loadDataDariDB() {
+    try {
+      const response = await fetch(API_URL);
+      const result = await response.json();
+      
+      // Mapping kolom database ke format objek tabel Anda
+      data = result.map(d => ({
+        db_id: d.id,
+        No: d.no_urut,
+        Tanggal: d.tanggal,
+        "No HP": d.penyetor,
+        Bank: d.bank,
+        Nominal: d.nominal,
+        "Fee Admin": d.fee_admin,
+        Total: d.total,
+        Margin: d.margin
+      }));
+      
+      tampilkanData(data);
+    } catch (err) {
+      console.error("Gagal terhubung ke server Python:", err);
+    }
+  }
+
+  function updateAutoFields() {
+    const bank = bankInput.value;
+    const nominal = parseInt(nominalInput.value);
+    if (bank && nominal) {
+      const fee = getAdminFee(bank, nominal);
+      feeAuto.value = fee;
+      totalAuto.value = nominal + fee;
+      marginAuto.value = fee;
+    }
+  }
+
+  [bankInput, nominalInput].forEach(input => input.addEventListener('input', updateAutoFields));
+
+  // Simpan data ke MySQL
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const tgl = document.getElementById('tgl').value;
+    const nohp = document.getElementById('nohp').value;
+    const bank = bankInput.value;
+    const nominal = parseInt(nominalInput.value);
+    const fee = getAdminFee(bank, nominal);
+    const total = nominal + fee;
+    const margin = total - nominal;
+
+    const payload = {
+      No: data.length > 0 ? Math.max(...data.map(d => d.No)) + 1 : 1,
+      Tanggal: tgl,
+      "No HP": nohp,
+      Bank: bank,
+      Nominal: nominal,
+      "Fee Admin": fee,
+      Total: total,
+      Margin: margin
+    };
+
+    try {
+      await fetch(API_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      
+      loadDataDariDB(); // Refresh tabel
+      form.reset();
+      document.getElementById('tgl').valueAsDate = new Date();
+      [feeAuto, totalAuto, marginAuto].forEach(el => el.value = '');
+      document.getElementById('nohp').focus();
+    } catch (err) {
+      alert("Gagal menyimpan ke database. Pastikan Python sudah jalan.");
+    }
+  });
+
+  function tampilkanData(list) {
+    tbody.innerHTML = '';
+    let totalNominal = 0, totalFee = 0, totalTotal = 0, totalMargin = 0;
+    
+    list.forEach((d) => {
+      tbody.innerHTML += `
+        <tr>
+          <td>${d.No}</td>
+          <td>${d.Tanggal}</td>
+          <td>${d["No HP"]}</td>
+          <td>${d.Bank}</td>
+          <td>${d.Nominal.toLocaleString()}</td>
+          <td>${d["Fee Admin"]}</td>
+          <td>${d.Total}</td>
+          <td>${d.Margin}</td>
+          <td><button class="btn-danger" style="padding: 2px 8px" onclick="hapusBaris(${d.db_id})">🗑️</button></td>
+        </tr>`;
+      totalNominal += d.Nominal;
+      totalFee += d["Fee Admin"];
+      totalTotal += d.Total;
+      totalMargin += d.Margin;
+    });
+
+    totalNominalEl.textContent = totalNominal.toLocaleString();
+    totalFeeEl.textContent = totalFee.toLocaleString();
+    totalTotalEl.textContent = totalTotal.toLocaleString();
+    totalMarginEl.textContent = totalMargin.toLocaleString();
+  }
+
+  async function hapusSemua() {
+    if (confirm("Yakin ingin menghapus semua data di database?")) {
+      await fetch(`${API_URL}/hapus-semua`, { method: 'DELETE' });
+      loadDataDariDB();
+    }
+  }
+
+  function exportToExcel() {
+    if (data.length === 0) return alert("Belum ada data!");
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Transaksi TF");
+    XLSX.writeFile(wb, "transaksi_tf_mysql.xlsx");
+  }
+
+  searchInput.addEventListener('keyup', () => {
+    const keyword = searchInput.value.trim().toLowerCase();
+    const filtered = data.filter(d => d["No HP"].toLowerCase().includes(keyword));
+    tampilkanData(filtered);
+  });
+
+  // Jalankan saat startup
+  loadBankDropdown();
+  loadDataDariDB();
+</script>
+
+</body>
+</html>

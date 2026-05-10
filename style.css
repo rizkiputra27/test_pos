@@ -1,0 +1,121 @@
+/* Tema Konter Pulsa - Gaya Umum */
+:root {
+  --primary: #1A237E;
+  --secondary: #E8EAF6;
+  --accent: #3949AB;
+  --text: #212121;
+  --white: #fff;
+  --danger: #e53935;
+  --success: #43a047;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--secondary);
+  color: var(--text);
+  padding: 20px;
+}
+
+.container {
+  max-width: 800px;
+  margin: auto;
+  background: var(--white);
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+h1, h2, h3 {
+  color: var(--primary);
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+button, input, select {
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+
+button {
+  background-color: var(--accent);
+  color: var(--white);
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+button:hover {
+  background-color: #303F9F;
+}
+
+.btn-danger {
+  background-color: var(--danger);
+}
+
+.btn-success {
+  background-color: var(--success);
+}
+
+form {
+  margin-bottom: 30px;
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+input[type="text"], input[type="number"], input[type="date"] {
+  width: calc(100% - 22px);
+  margin: 5px 0 15px;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  background-color: #fff;
+}
+
+th, td {
+  border: 1px solid #ccc;
+  padding: 10px;
+  text-align: center;
+}
+
+th {
+  background-color: var(--secondary);
+  color: var(--text);
+}
+
+.summary {
+  margin-top: 20px;
+  font-weight: bold;
+  text-align: right;
+}
+
+.link-group a {
+  display: block;
+  padding: 15px;
+  margin: 10px 0;
+  background: var(--accent);
+  color: var(--white);
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: bold;
+  transition: background 0.3s;
+  text-align: center;
+}
+
+.link-group a:hover {
+  background-color: #303F9F;
+}

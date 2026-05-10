@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Pengeluaran & Pemasukan</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f2f2f2; }
+    input, select, button { margin: 5px; padding: 8px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #fff; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #eee; }
+    .edit-btn, .delete-btn {
+      padding: 5px 10px;
+      cursor: pointer;
+      border: none;
+      margin: 0 2px;
+    }
+    .edit-btn { background: #ff9800; color: white; }
+    .delete-btn { background: #f44336; color: white; }
+    .total-info {
+      margin-top: 15px;
+      padding: 10px;
+      background: #e0f7fa;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Catatan Pengeluaran & Pemasukan</h2>
+
+<select id="tipe">
+  <option value="Pemasukan">Pemasukan</option>
+  <option value="Pengeluaran">Pengeluaran</option>
+</select>
+<input type="text" id="keterangan" placeholder="Keterangan">
+<input type="number" id="jumlah" placeholder="Jumlah (Rp)">
+<button id="btnSimpan" onclick="tambahData()">Tambah</button>
+
+<table id="tabelData">
+  <thead>
+    <tr><th>No</th><th>Keterangan</th><th>Pengeluaran</th><th>Pemasukan</th><th>Aksi</th></tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<div class="total-info">
+  <p><strong>Total Pemasukan:</strong> Rp <span id="totalMasuk">0</span></p>
+  <p><strong>Total Pengeluaran:</strong> Rp <span id="totalKeluar">0</span></p>
+</div>
+
+<script>
+  let data = JSON.parse(localStorage.getItem("keluarData")) || [];
+  let editIndex = -1;
+
+  function formatRupiah(angka) {
+    return angka.toLocaleString("id-ID");
+  }
+
+  function render() {
+    const tbody = document.querySelector("#tabelData tbody");
+    tbody.innerHTML = "";
+
+    let totalMasuk = 0;
+    let totalKeluar = 0;
+
+    data.forEach((item, index) => {
+      const pemasukan = parseFloat(item.Pemasukan) || 0;
+      const pengeluaran = parseFloat(item.Pengeluaran) || 0;
+
+      if (pemasukan) totalMasuk += pemasukan;
+      if (pengeluaran) totalKeluar += pengeluaran;
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${index + 1}</td>
+        <td>${item.Keterangan}</td>
+        <td>${pengeluaran ? "Rp " + formatRupiah(pengeluaran) : ""}</td>
+        <td>${pemasukan ? "Rp " + formatRupiah(pemasukan) : ""}</td>
+        <td>
+          <button class="edit-btn" onclick="isiFormEdit(${index})">Edit</button>
+          <button class="delete-btn" onclick="hapusData(${index})">Hapus</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById("totalKeluar").innerText = formatRupiah(totalKeluar);
+    document.getElementById("totalMasuk").innerText = formatRupiah(totalMasuk);
+
+    localStorage.setItem("keluarData", JSON.stringify(data));
+  }
+
+  function tambahData() {
+    const tipe = document.getElementById("tipe").value;
+    const keterangan = document.getElementById("keterangan").value.trim();
+    const jumlah = parseFloat(document.getElementById("jumlah").value);
+
+    if (!keterangan || isNaN(jumlah)) {
+      return alert("Lengkapi keterangan dan jumlah!");
+    }
+
+    const entry = {
+      No: data.length + 1,
+      Keterangan: keterangan,
+      Pemasukan: tipe === "Pemasukan" ? jumlah : "",
+      Pengeluaran: tipe === "Pengeluaran" ? jumlah : ""
+    };
+
+    if (editIndex === -1) {
+      // Tambah
+      data.push(entry);
+    } else {
+      // Edit
+      data[editIndex] = entry;
+      editIndex = -1;
+      document.getElementById("btnSimpan").innerText = "Tambah";
+    }
+
+    render();
+
+    document.getElementById("tipe").value = "Pemasukan";
+    document.getElementById("keterangan").value = "";
+    document.getElementById("jumlah").value = "";
+  }
+
+  function isiFormEdit(index) {
+    const item = data[index];
+    document.getElementById("tipe").value = item.Pemasukan !== "" ? "Pemasukan" : "Pengeluaran";
+    document.getElementById("keterangan").value = item.Keterangan;
+    document.getElementById("jumlah").value = item.Pemasukan || item.Pengeluaran;
+    document.getElementById("btnSimpan").innerText = "Simpan";
+    editIndex = index;
+  }
+
+  function hapusData(index) {
+    if (!confirm("Yakin ingin menghapus data ini?")) return;
+    data.splice(index, 1);
+    data.forEach((d, i) => d.No = i + 1);
+    render();
+  }
+
+  render();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Data Backup</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f2f2f2; }
+    h2 { background: #333; color: white; padding: 10px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #f0f0f0; }
+    button { padding: 10px 20px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+    .tab { display: none; }
+    .tab.active { display: block; }
+    .tab-buttons button { margin: 0 5px; }
+    .filter { margin: 10px 0; }
+  </style>
+</head>
+<body>
+<h2>📦 Data Backup</h2>
+<div class="tab-buttons">
+  <button onclick="showTab('pulsa')">Pulsa</button>
+  <button onclick="showTab('tf')">TF</button>
+  <button onclick="showTab('tarik')">Tarik</button>
+  <button onclick="exportBackup()">📤 Ekspor Excel</button>
+</div>
+<div class="filter">
+  <label>Filter tanggal: <input type="date" id="filterTanggal" onchange="loadBackupData()"></label>
+  <label>Bulan: <input type="month" id="filterBulan" onchange="loadBackupData()"></label>
+</div>
+<div id="pulsa" class="tab"></div>
+<div id="tf" class="tab"></div>
+<div id="tarik" class="tab"></div>
+
+<script>
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+  document.getElementById(name).classList.add('active');
+}
+
+function filterByDate(data, tanggalKey) {
+  const tanggal = document.getElementById('filterTanggal').value;
+  const bulan = document.getElementById('filterBulan').value;
+  return data.filter(item => {
+    const tgl = item[tanggalKey]?.split('/').reverse().join('-');
+    if (tanggal && tgl !== tanggal) return false;
+    if (bulan && !tgl.startsWith(bulan)) return false;
+    return true;
+  });
+}
+
+function loadBackupData() {
+  const data = JSON.parse(localStorage.getItem('databaseData')) || {};
+  document.getElementById('pulsa').innerHTML = '';
+  document.getElementById('tf').innerHTML = '';
+  document.getElementById('tarik').innerHTML = '';
+
+  addTable('pulsa', 'Pulsa', ['No', 'Tanggal', 'No HP', 'Denom', 'Via', 'Harga Jual', 'Modal', 'Laba'], filterByDate(data.pulsaData || [], 'Tanggal'));
+  addTable('tf', 'TF', ['No', 'Tanggal', 'Penyetor', 'Bank', 'Nominal', 'Fee Admin', 'Total', 'Margin'], filterByDate(data.tfData || [], 'Tanggal'));
+  addTable('tarik', 'Tarik Tunai', ['No', 'Tanggal', 'Keterangan', 'Nominal', 'Admin', 'Total'], filterByDate(data.tarikData || [], 'Tanggal'));
+}
+
+function addTable(id, title, headers, dataArray) {
+  const container = document.getElementById(id);
+  const section = document.createElement('div');
+  const heading = document.createElement('h3');
+  heading.textContent = title;
+  section.appendChild(heading);
+
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  const tr = document.createElement('tr');
+  headers.forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  let total = 0;
+  (dataArray || []).forEach((item, i) => {
+    const tr = document.createElement('tr');
+    headers.forEach(key => {
+      const td = document.createElement('td');
+      td.textContent = item[key] || item[key.replace(/ /g, '_')] || '';
+      tr.appendChild(td);
+    });
+    // Hitung total
+    if (id === 'pulsa') total += parseInt(item['Harga Jual']) || 0;
+    if (id === 'tf' || id === 'tarik') total += parseInt(item['Total']) || 0;
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  section.appendChild(table);
+
+  const totalDiv = document.createElement('p');
+  totalDiv.innerHTML = `<b>Total:</b> ${total.toLocaleString()}`;
+  section.appendChild(totalDiv);
+
+  container.appendChild(section);
+}
+
+function exportBackup() {
+  const data = JSON.parse(localStorage.getItem('databaseData'));
+  if (!data) return alert("Belum ada data");
+
+  const wb = XLSX.utils.book_new();
+  const makeSheet = (arr, headers) => {
+    const sheet = arr.map((d, i) => headers.map(h => d[h] || d[h.replace(/ /g, '_')] || ''));
+    sheet.unshift(headers);
+    return XLSX.utils.aoa_to_sheet(sheet);
+  };
+
+  XLSX.utils.book_append_sheet(wb, makeSheet(data.pulsaData || [], ['No', 'Tanggal', 'No HP', 'Denom', 'Via', 'Harga Jual', 'Modal', 'Laba']), 'Pulsa');
+  XLSX.utils.book_append_sheet(wb, makeSheet(data.tfData || [], ['No', 'Tanggal', 'Penyetor', 'Bank', 'Nominal', 'Fee Admin', 'Total', 'Margin']), 'TF');
+  XLSX.utils.book_append_sheet(wb, makeSheet(data.tarikData || [], ['No', 'Tanggal', 'Keterangan', 'Nominal', 'Admin', 'Total']), 'Tarik Tunai');
+
+  XLSX.writeFile(wb, `Backup-${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
+window.onload = () => {
+  showTab('pulsa');
+  loadBackupData();
+};
+</script>
+</body>
+</html>

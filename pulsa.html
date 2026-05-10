@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Penjualan Pulsa</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="icon" href="img/logo.ico" type="image/png">
+
+  <style>
+    body { font-family: Arial; padding: 20px; background: #f4f4f4; }
+    form { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 30px; }
+    input, select, button { padding: 8px; margin: 5px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #f0f0f0; }
+    .summary { margin-top: 20px; font-weight: bold; }
+    .btn-group button {
+      background-color: #2196F3;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      margin-top: 15px;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    .btn-danger { background-color: #f44336; }
+    #search {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 20px;
+      border: 2px solid #ccc;
+      border-radius: 5px;
+    }
+    .btn-edit {
+      background-color: orange;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Catatan Penjualan Pulsa</h2>
+
+<form id="formPulsa">
+  <input type="date" id="tgl" required readonly>
+  <input type="text" id="nohp" placeholder="No HP" required>
+  <input type="text" id="denom" placeholder="Denom" required>
+  <select id="via" required>
+    <option value="" disabled selected>Pilih VIA</option>
+    <option value="MOBO">MOBO</option>
+    <option value="LINK">LINK</option>
+    <option value="DOMPUL">DOMPUL</option>
+    <option value="VIVA">VIVA</option>
+    <option value="XML">XML</option>
+    <option value="RITA">RITA</option>
+    <option value="AD">MINTA AD</option>
+    <option value="ADS">MINTA ADS</option>
+    <option value="ADG">MINTA ADG</option>
+    <option value="ADP">MINTA ADP</option>
+    <option value="KE_AD">ISI KE AD</option>
+    <option value="KE_ADS">ISI KE ADS</option>
+    <option value="KE_ADG">ISI KE ADG</option>
+    <option value="KE_ADP">ISI KE ADP</option>
+  </select>
+  <input type="number" id="jual" placeholder="Harga Jual" required>
+  <input type="number" id="modal" placeholder="Modal" required>
+  <button type="submit">Tambah</button>
+</form>
+
+<input type="text" id="search" placeholder="🔍 Cari berdasarkan No HP...">
+
+<table id="pulsaTable">
+  <thead>
+    <tr>
+      <th>No</th>
+      <th>Tanggal</th>
+      <th>No HP</th>
+      <th>Denom</th>
+      <th>Via</th>
+      <th>Harga Jual</th>
+      <th>Modal</th>
+      <th>Laba</th>
+      <th>Aksi</th>
+    </tr>
+  </thead>
+  <tbody id="tabelData"></tbody>
+</table>
+
+<div class="summary">
+  Total Modal: <span id="totalModal">Rp 0</span> |
+  Total Laba: <span id="totalLaba">Rp 0</span>
+</div>
+
+<div class="btn-group">
+  <button onclick="exportToExcel()">📤 Download Excel (.xlsx)</button>
+  <button class="btn-danger" onclick="hapusSemua()">🗑️ Hapus Semua Data</button>
+  <button onclick="tampilkanChartVia()">📊 Tampilkan Grafik VIA</button>
+</div>
+
+<canvas id="viaChart" style="max-width:600px; margin-top: 30px;"></canvas>
+
+
+<script>
+  const form = document.getElementById('formPulsa');
+  const tbody = document.getElementById('tabelData');
+  const totalModalEl = document.getElementById('totalModal');
+  const totalLabaEl = document.getElementById('totalLaba');
+  const searchInput = document.getElementById('search');
+  const submitBtn = form.querySelector('button[type="submit"]');
+
+  let data = JSON.parse(localStorage.getItem('pulsaData')) || [];
+  let no = data.length > 0 ? Math.max(...data.map(d => d.No)) + 1 : 1;
+  let editIndex = -1;
+
+  function setTanggalHariIni() {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    document.getElementById('tgl').value = `${yyyy}-${mm}-${dd}`;
+  }
+
+  function formatRupiah(angka) {
+    return "Rp " + angka.toLocaleString("id-ID");
+  }
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const tgl = document.getElementById('tgl').value;
+    const nohp = document.getElementById('nohp').value;
+    const denom = document.getElementById('denom').value.trim();
+    const via = document.getElementById('via').value;
+    const jual = parseInt(document.getElementById('jual').value);
+    const modal = parseInt(document.getElementById('modal').value);
+    const laba = jual - modal;
+
+    if (!tgl || !nohp || !denom || !via || isNaN(jual) || isNaN(modal)) {
+      alert("Harap isi semua kolom dengan benar.");
+      return;
+    }
+
+    if (editIndex === -1) {
+      const row = {
+        No: no++,
+        Tanggal: tgl,
+        "No HP": nohp,
+        Denom: denom,
+        Via: via,
+        "Harga Jual": jual,
+        Modal: modal,
+        Laba: laba
+      };
+      data.push(row);
+    } else {
+      data[editIndex] = {
+        ...data[editIndex],
+        Tanggal: tgl,
+        "No HP": nohp,
+        Denom: denom,
+        Via: via,
+        "Harga Jual": jual,
+        Modal: modal,
+        Laba: laba
+      };
+      editIndex = -1;
+      submitBtn.textContent = "Tambah";
+    }
+
+    localStorage.setItem('pulsaData', JSON.stringify(data));
+    tampilkanData(data);
+    form.reset();
+    setTanggalHariIni();
+document.getElementById('nohp').focus();
+  });
+
+  function tampilkanData(list) {
+    tbody.innerHTML = '';
+    let totalLaba = 0, totalModal = 0;
+
+    list.forEach((d, index) => {
+      tbody.innerHTML += `
+        <tr>
+          <td>${d.No}</td>
+          <td>${d.Tanggal}</td>
+          <td>${d["No HP"]}</td>
+          <td>${d.Denom}</td>
+          <td>${d.Via}</td>
+          <td>${formatRupiah(d["Harga Jual"])}</td>
+          <td>${formatRupiah(d.Modal)}</td>
+          <td style="color:${d.Laba < 0 ? 'red' : 'black'}">${formatRupiah(d.Laba)}</td>
+          <td>
+            <button class="btn-edit" onclick="editBaris(${index})">✏️ Edit</button>
+            <button onclick="hapusBaris(${index})" class="btn-danger">🗑️</button>
+          </td>
+        </tr>
+      `;
+      totalLaba += d.Laba;
+      totalModal += d.Modal;
+    });
+
+    totalLabaEl.textContent = formatRupiah(totalLaba);
+    totalModalEl.textContent = formatRupiah(totalModal);
+  }
+
+  function editBaris(index) {
+    const d = data[index];
+    document.getElementById('tgl').value = d.Tanggal;
+    document.getElementById('nohp').value = d["No HP"];
+    document.getElementById('denom').value = d.Denom;
+    document.getElementById('via').value = d.Via;
+    document.getElementById('jual').value = d["Harga Jual"];
+    document.getElementById('modal').value = d.Modal;
+
+    editIndex = index;
+    submitBtn.textContent = "Update";
+  }
+
+  function hapusBaris(index) {
+    if (confirm("Hapus data ini?")) {
+      data.splice(index, 1);
+      localStorage.setItem('pulsaData', JSON.stringify(data));
+      tampilkanData(data);
+    }
+  }
+
+  function exportToExcel() {
+    if (data.length === 0) {
+      alert("Belum ada data untuk diekspor!");
+      return;
+    }
+
+    const sheetData = data.map(d => [
+      d.No, d.Tanggal, d["No HP"], d.Denom, d.Via, d["Harga Jual"], d.Modal, d.Laba
+    ]);
+
+    const jumlahBaris = sheetData.length + 1;
+    sheetData.push([
+      "Total", "", "", "", "",
+      { f: `SUM(F2:F${jumlahBaris})` },
+      "",
+      { f: `SUM(H2:H${jumlahBaris})` }
+    ]);
+
+    const header = ["No", "Tanggal", "No HP", "Denom", "Via", "Harga Jual", "Modal", "Laba"];
+    sheetData.unshift(header);
+
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Penjualan Pulsa");
+    XLSX.writeFile(wb, "penjualan_pulsa_total.xlsx");
+  }
+
+  function hapusSemua() {
+    if (confirm("Yakin ingin menghapus semua data?")) {
+      localStorage.removeItem('pulsaData');
+      data = [];
+      no = 1;
+      tampilkanData(data);
+    }
+  }
+
+  searchInput.addEventListener('keyup', () => {
+    const keyword = searchInput.value.trim().toLowerCase();
+    const filtered = data.filter(d => d["No HP"].toLowerCase().includes(keyword));
+    tampilkanData(filtered);
+  });
+
+  // Inisialisasi saat halaman dimuat
+  setTanggalHariIni();
+  tampilkanData(data);
+
+  let chartInstance = null;
+
+function tampilkanChartVia() {
+  const viaCounts = {};
+
+  data.forEach(d => {
+    if (viaCounts[d.Via]) {
+      viaCounts[d.Via]++;
+    } else {
+      viaCounts[d.Via] = 1;
+    }
+  });
+
+  const labels = Object.keys(viaCounts);
+  const jumlah = Object.values(viaCounts);
+
+  const ctx = document.getElementById('viaChart').getContext('2d');
+
+  // Hapus chart lama kalau ada
+  if (chartInstance) {
+    chartInstance.destroy();
+  }
+
+  chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Jumlah Transaksi per VIA',
+        data: jumlah,
+        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            precision:0
+          }
+        }
+      }
+    }
+  });
+}
+</script>
+
+</body>
+</html>

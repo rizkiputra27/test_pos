@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Rekap Laci - ADG CELL</title>
+  <link rel="icon" href="img/logo.ico" type="image/png">
+
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f7f9fc;
+      margin: 0;
+      padding: 30px;
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      color: #007bff;
+      margin-bottom: 20px;
+    }
+
+    #tanggal {
+      text-align: center;
+      font-size: 16px;
+      margin-bottom: 30px;
+      font-weight: bold;
+      color: #555;
+    }
+
+    .rekap-container {
+      background: white;
+      border-radius: 12px;
+      max-width: 480px;
+      margin: auto;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      padding: 30px 40px;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 12px 0;
+      font-size: 18px;
+    }
+
+    .row input {
+      border: none;
+      border-bottom: 2px solid #007bff;
+      font-size: 18px;
+      width: 150px;
+      text-align: right;
+      background: transparent;
+      transition: all 0.3s;
+    }
+
+    .row input:focus {
+      outline: none;
+      border-color: #0056b3;
+    }
+
+    .line {
+      border-bottom: 1px dashed #ccc;
+      margin: 20px 0;
+    }
+
+    .hasil {
+      font-size: 20px;
+      font-weight: bold;
+      text-align: center;
+      margin: 15px 0;
+    }
+
+    .positif {
+      color: green;
+    }
+
+    .negatif {
+      color: red;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      margin: 8px 5px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background-color: #007bff;
+      color: white;
+      transition: background 0.3s;
+    }
+
+    .btn:hover {
+      background-color: #0056b3;
+    }
+
+    .btn-container {
+      text-align: center;
+      margin-top: 20px;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+  <h1>Rekap Laci ADG CELL</h1>
+  <div id="tanggal">Tanggal: --/--/----</div>
+
+  <div class="rekap-container">
+    <div class="row">LACI: <input type="text" id="laciInput" value="0" oninput="formatInput(this); simpanData()" /></div>
+
+    <div class="line"></div>
+
+    <div class="row">PULSA: <span id="pulsaOutput">0</span></div>
+    <div class="row">KASIR: <input type="text" id="kasirInput" value="0" oninput="formatInput(this); simpanData()" /></div>
+    <div class="row">ACC: <span id="accOutput">0</span></div>
+
+    <div class="line"></div>
+
+    <div class="row"><strong>TOTAL:</strong> <span id="totalOutput">0</span></div>
+    <div class="row">KELUAR: <span id="keluarOutput">0</span></div>
+
+    <div class="line"></div>
+
+    <div class="hasil">HASIL: <span id="hasilOutput">0</span></div>
+    <div class="hasil">SISA: <span id="sisaSelisih" class="">+0</span></div>
+    <div class="row">MODAL: <input type="text" id="modalInput" value="0" oninput="formatInput(this); simpanData()" /></div>
+
+    <div class="btn-container">
+      <button class="btn" onclick="hitung()">Hitung</button>
+      <button class="btn" onclick="exportExcel()">Ekspor Excel</button>
+      <button class="btn" onclick="exportPDF()">Ekspor PDF</button>
+    </div>
+  </div>
+
+<script>
+  // JS kamu tetap sama seperti sebelumnya, tidak berubah
+  function formatRupiah(num) {
+    return parseInt(num || 0).toLocaleString('id-ID');
+  }
+
+  function parseRupiah(str) {
+    return parseFloat((str || "0").replace(/\./g, '').replace(',', '.')) || 0;
+  }
+
+  function formatInput(input) {
+    const num = parseRupiah(input.value);
+    input.value = formatRupiah(num);
+  }
+
+  function simpanData() {
+    localStorage.setItem("rekapLaci", JSON.stringify({
+      kasir: document.getElementById('kasirInput').value,
+      laci: document.getElementById('laciInput').value,
+      modal: document.getElementById('modalInput').value,
+    }));
+  }
+
+  function muatData() {
+    const data = JSON.parse(localStorage.getItem("rekapLaci") || "{}");
+    if (data.kasir) document.getElementById("kasirInput").value = data.kasir;
+    if (data.laci) document.getElementById("laciInput").value = data.laci;
+    if (data.modal) document.getElementById("modalInput").value = data.modal;
+  }
+
+  function hitung() {
+    const kasir = parseRupiah(document.getElementById('kasirInput').value);
+    const laci = parseRupiah(document.getElementById('laciInput').value);
+
+    const pulsaData = JSON.parse(localStorage.getItem('pulsaData')) || [];
+    const tfData = JSON.parse(localStorage.getItem('tfData')) || [];
+    const tarikData = JSON.parse(localStorage.getItem('tarikData')) || [];
+    const keluarData = JSON.parse(localStorage.getItem('keluarData')) || [];
+
+    const pulsaTotal = pulsaData.reduce((sum, d) => sum + parseFloat(d["Harga Jual"] || 0), 0);
+    const accTotal =
+      tfData.reduce((sum, d) => sum + parseFloat(d.Total || 0), 0) +
+      tarikData.reduce((sum, d) => sum + parseFloat(d.Admin || 0), 0) +
+      keluarData.reduce((sum, d) => sum + parseFloat(d.Pemasukan || 0), 0);
+    const keluarTotal =
+      tarikData.reduce((sum, d) => sum + parseFloat(d.Nominal || 0), 0) +
+      keluarData.reduce((sum, d) => sum + parseFloat(d.Pengeluaran || 0), 0);
+
+    const total = pulsaTotal + kasir + accTotal;
+    const hasil = total - keluarTotal;
+    const selisih = laci - hasil;
+    const sisaLabel = selisih === 0 ? "0" : (selisih > 0 ? `+${formatRupiah(selisih)}` : `-${formatRupiah(Math.abs(selisih))}`);
+
+    document.getElementById('pulsaOutput').innerText = formatRupiah(pulsaTotal);
+    document.getElementById('accOutput').innerText = formatRupiah(accTotal);
+    document.getElementById('keluarOutput').innerText = formatRupiah(keluarTotal);
+    document.getElementById('totalOutput').innerText = formatRupiah(total);
+    document.getElementById('hasilOutput').innerText = formatRupiah(hasil);
+
+    const sisaEl = document.getElementById('sisaSelisih');
+    sisaEl.innerText = sisaLabel;
+    sisaEl.className = selisih === 0 ? '' : (selisih > 0 ? 'positif' : 'negatif');
+  }
+
+  function exportExcel() {
+    hitung();
+    const pulsa = document.getElementById('pulsaOutput').innerText;
+    const kasir = document.getElementById('kasirInput').value;
+    const acc = document.getElementById('accOutput').innerText;
+    const keluar = document.getElementById('keluarOutput').innerText;
+    const total = document.getElementById('totalOutput').innerText;
+    const hasil = document.getElementById('hasilOutput').innerText;
+    const laci = document.getElementById('laciInput').value;
+    const sisa = document.getElementById('sisaSelisih').innerText;
+    const modal = document.getElementById('modalInput').value;
+    const tanggal = new Date().toLocaleDateString('id-ID');
+
+    const ws_data = [
+      [`Rekap Laci ADG CELL`],
+      [`Tanggal: ${tanggal}`],
+      [],
+      ['LACI', '', laci],
+      [],
+      ['PULSA', '', pulsa],
+      ['KASIR', '', kasir],
+      ['ACC', '', acc],
+      ['TOTAL', '', total],
+      ['KELUAR', '', keluar],
+      ['HASIL',  '', hasil],
+      ['SISA', '', '', sisa],
+      ['MODAL', '', '', modal],
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Rekap Laci");
+    ws['!cols'] = [
+      { wch: 15 }, { wch: 5 }, { wch: 20 }
+    ];
+    XLSX.writeFile(wb, "Rekap_Laci.xlsx");
+  }
+
+  function exportPDF() {
+    hitung();
+    const { jsPDF } = window.jspdf;
+    const tanggal = "Tanggal: " + new Date().toLocaleDateString('id-ID');
+    const laci = document.getElementById('laciInput').value;
+    const pulsa = document.getElementById('pulsaOutput').innerText;
+    const kasir = document.getElementById('kasirInput').value;
+    const acc = document.getElementById('accOutput').innerText;
+    const total = document.getElementById('totalOutput').innerText;
+    const keluar = document.getElementById('keluarOutput').innerText;
+    const hasil = document.getElementById('hasilOutput').innerText;
+    const sisa = document.getElementById('sisaSelisih').innerText;
+    const modal = document.getElementById('modalInput').value;
+
+    const text = `
+${tanggal}
+
+LACI   : ${laci}
+PULSA  : ${pulsa}
+KASIR  : ${kasir}
+ACC    : ${acc}
+_____________________________
+TOTAL  : ${total}
+KELUAR : ${keluar}
+_____________________________
+
+HASIL  : ${hasil}
+SISA   : ${sisa}
+MODAL  : ${modal}
+`;
+
+    const doc = new jsPDF();
+    doc.setFont("Courier", "normal");
+    doc.setFontSize(12);
+    doc.text("Rekap Laci ADG CELL", 20, 15);
+    doc.text(text, 20, 30);
+    doc.save("Rekap_Laci.pdf");
+  }
+
+  document.getElementById("tanggal").innerText = "Tanggal: " + new Date().toLocaleDateString('id-ID');
+  window.onload = () => {
+    muatData();
+    hitung();
+  };
+</script>
+
+</body>
+</html>

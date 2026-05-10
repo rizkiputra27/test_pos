@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Master Operator Pulsa</title>
+<link rel="stylesheet" href="style.css">
+
+<style>
+body { font-family: Arial; padding:20px; background:#f4f4f4; }
+h2 { margin-bottom:20px; }
+
+form { background:#fff; padding:15px; border-radius:8px; }
+input, button { padding:8px; margin:5px; }
+
+table { width:100%; margin-top:20px; border-collapse:collapse; background:#fff; }
+th, td { border:1px solid #ccc; padding:8px; text-align:center; }
+
+button { cursor:pointer; }
+.btn-edit { background:orange; color:white; border:none; }
+.btn-danger { background:red; color:white; border:none; }
+</style>
+</head>
+<body>
+
+<h2>📱 Master Operator Pulsa</h2>
+
+<form id="formOperator">
+  <input type="text" id="namaOperator" placeholder="Nama Operator (Telkomsel, XL, dll)" required>
+  <button type="submit">Tambah</button>
+</form>
+
+<table>
+<thead>
+<tr>
+<th>No</th>
+<th>Operator</th>
+<th>Aksi</th>
+</tr>
+</thead>
+<tbody id="tabelOperator"></tbody>
+</table>
+
+<script>
+
+let operatorList = JSON.parse(localStorage.getItem('operatorList')) || [];
+let editIndex = -1;
+
+const form = document.getElementById('formOperator');
+const input = document.getElementById('namaOperator');
+const tbody = document.getElementById('tabelOperator');
+const btn = form.querySelector('button');
+
+// TAMBAH / EDIT
+form.addEventListener('submit', function(e){
+  e.preventDefault();
+
+  const nama = input.value.trim();
+
+  if(!nama){
+    alert("Operator tidak boleh kosong");
+    return;
+  }
+
+  if(editIndex === -1){
+    operatorList.push(nama);
+  } else {
+    operatorList[editIndex] = nama;
+    editIndex = -1;
+    btn.textContent = "Tambah";
+  }
+
+  localStorage.setItem('operatorList', JSON.stringify(operatorList));
+  render();
+  form.reset();
+});
+
+// TAMPILKAN
+function render(){
+  tbody.innerHTML = "";
+
+  operatorList.forEach((op, i)=>{
+    tbody.innerHTML += `
+      <tr>
+        <td>${i+1}</td>
+        <td>${op}</td>
+        <td>
+          <button class="btn-edit" onclick="editData(${i})">Edit</button>
+          <button class="btn-danger" onclick="hapusData(${i})">Hapus</button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+// EDIT
+function editData(i){
+  input.value = operatorList[i];
+  editIndex = i;
+  btn.textContent = "Update";
+}
+
+// HAPUS
+function hapusData(i){
+  if(confirm("Hapus operator ini?")){
+    operatorList.splice(i,1);
+    localStorage.setItem('operatorList', JSON.stringify(operatorList));
+    render();
+  }
+}
+
+// INIT
+render();
+
+</script>
+
+</body>
+</html>

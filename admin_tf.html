@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<meta charset="UTF-8">
+<title>Master Fee Range</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="img/logo.ico" type="image/png">
+
+<style>
+body { font-family: Arial; padding:20px; background:#f4f4f4;}
+form { background:#fff; padding:15px; margin-bottom:20px; border-radius:8px;}
+input, select, button { padding:8px; margin:5px;}
+table { width:100%; border-collapse:collapse; background:#fff;}
+th, td { border:1px solid #ccc; padding:8px; text-align:center;}
+.btn-danger { background:red; color:white; border:none;}
+.btn { background:#2196F3; color:white; border:none;}
+</style>
+</head>
+
+<body>
+
+<h2>Master Bank</h2>
+<form id="formBank">
+<input type="text" id="namaBank" placeholder="Nama Bank" required>
+<button class="btn">Tambah Bank</button>
+</form>
+
+<table>
+<thead>
+<tr><th>No</th><th>Bank</th><th>Aksi</th></tr>
+</thead>
+<tbody id="tabelBank"></tbody>
+</table>
+
+<hr>
+
+<h3>Rule Fee (Range)</h3>
+
+<form id="formRule">
+<select id="pilihBank" required></select>
+<input type="number" id="minNominal" placeholder="Nominal Awal" required>
+<input type="number" id="maxNominal" placeholder="Nominal Akhir" required>
+<input type="number" id="feeNominal" placeholder="Fee Admin" required>
+<button class="btn">Tambah Rule</button>
+</form>
+<p><b>Petunjuk:</b> Gunakan template yang disediakan. Jangan ubah nama kolom.</p>
+<h3>Import Fee dari Excel</h3>
+
+<input type="file" id="importExcel" accept=".xlsx,.xls">
+
+<select id="modeImport">
+  <option value="replace">Replace (Timpa Semua)</option>
+  <option value="merge">Merge (Gabung Data)</option>
+</select>
+<a href="template_fee.xlsx" download>
+  <button>📄 Template Jadi</button>
+</a>
+<button onclick="importExcel()">📥 Import</button>
+<button onclick="downloadTemplate()">📄 Download Template</button>
+<table>
+<thead>
+<tr><th>Bank</th><th>Range</th><th>Fee</th><th>Aksi</th></tr>
+</thead>
+<tbody id="tabelRule"></tbody>
+</table>
+
+<script>
+
+let feeData = JSON.parse(localStorage.getItem('feeData')) || [];
+let editRule = {b:-1,r:-1};
+
+// ================= BANK =================
+document.getElementById('formBank').onsubmit = e=>{
+  e.preventDefault();
+
+  let nama = document.getElementById('namaBank').value;
+
+  feeData.push({bank:nama, rules:[]});
+
+  save();
+  e.target.reset();
+  render();
+};
+
+function renderBank(){
+  let html='';
+  feeData.forEach((b,i)=>{
+    html+=`
+    <tr>
+      <td>${i+1}</td>
+      <td>${b.bank}</td>
+      <td>
+        <button onclick="hapusBank(${i})" class="btn-danger">🗑️</button>
+      </td>
+    </tr>`;
+  });
+  document.getElementById('tabelBank').innerHTML=html;
+
+  // dropdown
+  let opt='<option disabled selected>Pilih Bank</option>';
+  feeData.forEach(b=> opt+=`<option>${b.bank}</option>`);
+  document.getElementById('pilihBank').innerHTML=opt;
+}
+
+function hapusBank(i){
+  if(confirm("Hapus bank?")){
+    feeData.splice(i,1);
+    save();
+    render();
+  }
+}
+
+// ================= RULE =================
+document.getElementById('formRule').onsubmit = e=>{
+  e.preventDefault();
+
+  let bank = pilihBank.value;
+  let min = parseInt(minNominal.value);
+  let max = parseInt(maxNominal.value);
+  let fee = parseInt(feeNominal.value);
+
+  let bIndex = feeData.findIndex(b=>b.bank===bank);
+
+  if(editRule.b === -1){
+    feeData[bIndex].rules.push({min,max,fee});
+  } else {
+    feeData[editRule.b].rules[editRule.r] = {min,max,fee};
+    editRule = {b:-1,r:-1};
+    e.target.querySelector('button').textContent = "Tambah Rule";
+  }
+
+  // urutkan
+  feeData[bIndex].rules.sort((a,b)=>a.min-b.min);
+
+  save();
+  e.target.reset();
+  render();
+};
+
+function renderRule(){
+  let html='';
+  feeData.forEach((b,i)=>{
+    b.rules.forEach((r,j)=>{
+      html+=`
+      <tr>
+        <td>${b.bank}</td>
+        <td>${r.min} - ${r.max}</td>
+        <td>${r.fee}</td>
+        <td>
+          <button onclick="editRuleFn(${i},${j})">✏️</button>
+          <button onclick="hapusRule(${i},${j})" class="btn-danger">🗑️</button>
+        </td>
+      </tr>`;
+    });
+  });
+  document.getElementById('tabelRule').innerHTML=html;
+}
+
+function editRuleFn(i,j){
+  let r = feeData[i].rules[j];
+
+  pilihBank.value = feeData[i].bank;
+  minNominal.value = r.min;
+  maxNominal.value = r.max;
+  feeNominal.value = r.fee;
+
+  editRule = {b:i,r:j};
+  document.querySelector('#formRule button').textContent = "Update Rule";
+}
+
+function importExcel() {
+  const file = document.getElementById('importExcel').files[0];
+  const mode = document.getElementById('modeImport').value;
+
+  if (!file) return alert("Pilih file dulu!");
+
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    const dataExcel = new Uint8Array(e.target.result);
+    const wb = XLSX.read(dataExcel, { type: 'array' });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(sheet);
+
+    let tempData = [];
+
+    for (let i = 0; i < json.length; i++) {
+      const row = json[i];
+
+      const bank = row["Bank"];
+      const min = parseInt(row["Nominal Awal"]);
+      const max = parseInt(row["Nominal Akhir"]);
+      const fee = parseInt(row["Fee"]);
+
+      // VALIDASI
+      if (!bank || isNaN(min) || isNaN(max) || isNaN(fee)) {
+        alert(`Error di baris ${i+2} (data tidak valid)`);
+        return;
+      }
+
+      if (min > max) {
+        alert(`Error di baris ${i+2} (Nominal Awal > Nominal Akhir)`);
+        return;
+      }
+
+      let existing = tempData.find(b => b.bank === bank);
+
+      if (!existing) {
+        existing = { bank: bank, rules: [] };
+        tempData.push(existing);
+      }
+
+      // CEK TABRAKAN RANGE
+      for (let r of existing.rules) {
+        if (!(max < r.min || min > r.max)) {
+          alert(`Range tabrakan di bank ${bank} (baris ${i+2})`);
+          return;
+        }
+      }
+
+      existing.rules.push({ min, max, fee });
+    }
+
+    // SORT
+    tempData.forEach(b => b.rules.sort((a,b)=>a.min-b.min));
+
+    // MODE
+    if (mode === "replace") {
+      feeData = tempData;
+    } else {
+      // merge
+      tempData.forEach(newBank => {
+        let old = feeData.find(b => b.bank === newBank.bank);
+
+        if (!old) {
+          feeData.push(newBank);
+        } else {
+          newBank.rules.forEach(r => {
+            // cek tabrakan lagi
+            let conflict = old.rules.some(o =>
+              !(r.max < o.min || r.min > o.max)
+            );
+
+            if (!conflict) {
+              old.rules.push(r);
+            }
+          });
+
+          old.rules.sort((a,b)=>a.min-b.min);
+        }
+      });
+    }
+
+    localStorage.setItem('feeData', JSON.stringify(feeData));
+
+    alert("Import berhasil!");
+    render();
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+function downloadTemplate() {
+  const data = [
+    ["Bank", "Nominal Awal", "Nominal Akhir", "Fee"],
+    ["BRI", 0, 1000000, 5000],
+    ["BRI", 1000001, 2000000, 8000],
+    ["DANA", 0, 300000, 3000]
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Template Fee");
+
+  XLSX.writeFile(wb, "template_fee.xlsx");
+}
+
+function hapusRule(i,j){
+  if(confirm("Hapus rule?")){
+    feeData[i].rules.splice(j,1);
+    save();
+    render();
+  }
+}
+
+// ================= SAVE =================
+function save(){
+  localStorage.setItem('feeData', JSON.stringify(feeData));
+}
+
+// ================= INIT =================
+function render(){
+  renderBank();
+  renderRule();
+}
+
+render();
+
+</script>
+
+</body>
+</html>

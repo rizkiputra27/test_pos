@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Landing Page - Aplikasi Transaksi</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    .background-text {
+  position: absolute;
+  top: 30%;
+  white-space: nowrap;
+  font-size: 120px;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.05);
+  text-transform: uppercase;
+  pointer-events: none;
+  z-index: 0;
+  animation: moveText 20s linear infinite;
+}
+
+@keyframes moveText {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: radial-gradient(circle at top left, #0f2027, #203a43, #2c5364);
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      overflow: hidden;
+      padding: 20px;
+    }
+
+    .top-bar {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      display: flex;
+      gap: 14px;
+      z-index: 10;
+    }
+
+    .circle-icon, .main-link-button {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 18px;
+      text-decoration: none;
+      backdrop-filter: blur(10px);
+      transition: 0.3s;
+    }
+
+    .circle-icon:hover {
+      transform: scale(1.1);
+      background-color: rgba(255,255,255,0.3);
+    }
+
+    .main-link-button {
+      border-radius: 25px;
+      padding: 10px 20px;
+      font-weight: bold;
+      font-size: 14px;
+      background: linear-gradient(to right, #f7971e, #ffd200);
+      color: #333;
+    }
+
+    .main-link-button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 10px #ffd200aa;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 50px 40px;
+      border-radius: 20px;
+      backdrop-filter: blur(15px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+      max-width: 600px;
+      animation: fadeInUp 1s ease-out;
+    }
+
+    .icon {
+      font-size: 70px;
+      margin-bottom: 20px;
+      color: #ffd200;
+      animation: wave 2s infinite ease-in-out;
+    }
+
+    h1 {
+      font-size: 30px;
+      margin-bottom: 15px;
+      color: #ffffff;
+    }
+
+    p {
+      font-size: 16px;
+      line-height: 1.6;
+      color: #e0e0e0;
+    }
+
+    .cta-button {
+      margin-top: 30px;
+      padding: 15px 40px;
+      background: linear-gradient(to right, #00c6ff, #0072ff);
+      color: white;
+      border: none;
+      font-weight: bold;
+      border-radius: 30px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .cta-button:hover {
+      background: linear-gradient(to right, #0072ff, #00c6ff);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 30px rgba(0, 198, 255, 0.4);
+    }
+
+    @keyframes fadeInUp {
+      from {
+        transform: translateY(40px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes wave {
+      0%, 100% { transform: rotate(-10deg); }
+      50% { transform: rotate(10deg); }
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 30px 20px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      p {
+        font-size: 14px;
+      }
+
+      .cta-button {
+        padding: 12px 30px;
+        font-size: 14px;
+      }
+
+      .main-link-button {
+        font-size: 12px;
+        padding: 8px 14px;
+      }
+
+      .top-bar {
+        flex-direction: column;
+        top: 10px;
+        right: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Tambahkan di dalam <body>, tepat setelah <body> -->
+<div class="background-text">SELAMAT DATANG</div>
+
+  <!-- Konten utama -->
+  <div class="container">
+    <div class="icon"><i class="fas fa-chart-line"></i></div>
+    <h1>Selamat Datang di Aplikasi Totalan</h1>
+    <p>Catat semua transaksi harianmu: penjualan pulsa, transfer, dan pengeluaran dengan mudah dan cepat.</p>
+    <p>Satu aplikasi, semua bisa.</p>
+    <a href="beranda.html"><button class="cta-button">🚀 Mulai Sekarang</button></a>
+  </div>
+
+</body>
+</html>

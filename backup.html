@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Laporan Transaksi Gabungan</title>
+  <link rel="icon" href="img/logo.ico" type="image/png">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f4f4f4; }
+    h2 { background: #2196F3; color: white; padding: 10px; }
+    .tab { display: none; }
+    .tab.active { display: block; }
+    .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+    .tabs button { padding: 10px 20px; cursor: pointer; border: none; background: #ccc; }
+    .tabs button.active { background: #2196F3; color: white; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #fff; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #f0f0f0; }
+    .btn-export { margin-top: 20px; padding: 10px 20px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<h2>Laporan Transaksi Gabungan</h2>
+
+<div class="tabs">
+  <button onclick="showTab('pulsa')" class="active">Pulsa</button>
+  <button onclick="showTab('tf')">TF</button>
+  <button onclick="showTab('tarik')">Tarik Tunai</button>
+  <button onclick="showTab('keluar')">Pengeluaran</button>
+
+</div>
+
+<div id="pulsa" class="tab active">
+  <h3>Penjualan Pulsa</h3>
+  <table id="tablePulsa">
+    <thead>
+      <tr><th>No</th><th>Tanggal</th><th>No HP</th><th>Denom</th><th>VIA</th><th>Harga Jual</th><th>Modal</th><th>Laba</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+<p id="totalPulsa" style="font-weight: bold; margin-top: 10px;"></p>
+</div>
+
+<div id="tf" class="tab">
+  <h3>Transaksi TF</h3>
+  <table id="tableTF">
+    <thead>
+      <tr><th>No</th><th>Tanggal</th><th>Penyetor</th><th>Bank</th><th>Nominal</th><th>Fee Admin</th><th>Total</th><th>Margin</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+<p id="totalTF" style="font-weight: bold; margin-top: 10px;"></p>
+</div>
+
+<div id="tarik" class="tab">
+  <h3>Tarik Tunai</h3>
+  <table id="tableTarik">
+    <thead>
+      <tr><th>No</th><th>Tanggal</th><th>Keterangan</th><th>Nominal</th><th>Admin</th><th>Total</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+<p id="totalTarik" style="font-weight: bold; margin-top: 10px;"></p>
+</div>
+<div id="keluar" class="tab">
+  <h3>Pengeluaran & Pemasukan</h3>
+  <table id="tableKeluar">
+    <thead>
+      <tr><th>No</th><th>Keterangan</th><th>Pengeluaran</th><th>Pemasukan</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <p id="totalKeluar" style="font-weight: bold; margin-top: 10px;"></p>
+</div>
+<div id="modalEdit" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
+  <div style="background:#fff; padding:20px; border-radius:10px; width:90%; max-width:400px;">
+    <h3>Edit Transaksi</h3>
+    <form id="formEdit">
+      <input type="hidden" id="editIndex">
+      <input type="hidden" id="editType">
+      <div id="formEditFields"></div>
+      <button type="submit">💾 Simpan</button>
+      <button type="button" onclick="closeModal()">❌ Batal</button>
+    </form>
+  </div>
+</div>
+
+<button class="btn-export" onclick="exportSemuaData()">📤 Ekspor Semua ke Excel</button>
+<input type="file" id="fileInput" accept=".xlsx" style="margin-top: 10px;" />
+<button onclick="importDariExcel()">📥 Impor dari Excel</button>
+<button onclick="hapusSemuaData()" style="background:#f44336; color:white; padding:10px 20px; border:none; margin-top:10px;">🗑️ Hapus Semua Data</button>
+<button onclick="backupKeDatabase()" style="background:#2196F3; color:white; padding:10px 20px; border:none; margin-top:10px;">📦 Backup ke database</button>
+
+<script>
+function showTab(id) {
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tabs button').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById(id).classList.add('active');
+}
+
+function loadData() {
+  // Pulsa
+  const dataPulsa = JSON.parse(localStorage.getItem('pulsaData')) || [];
+  const tbodyPulsa = document.querySelector('#tablePulsa tbody');
+  tbodyPulsa.innerHTML = '';
+  dataPulsa.forEach(d => {
+    tbodyPulsa.innerHTML += `<tr>
+      <td>${d.No}</td><td>${d.Tanggal}</td><td>${d["No HP"]}</td><td>${d.Denom}</td><td>${d["Via"]}</td>
+      <td>${d["Harga Jual"]}</td><td>${d.Modal}</td><td>${d.Laba}</td>
+    </tr>`;
+  });
+
+  // TF
+  const dataTF = JSON.parse(localStorage.getItem('tfData')) || [];
+  const tbodyTF = document.querySelector('#tableTF tbody');
+  tbodyTF.innerHTML = '';
+  dataTF.forEach(d => {
+    tbodyTF.innerHTML += `<tr>
+      <td>${d.No}</td><td>${d.Tanggal}</td><td>${d["No HP"]}</td><td>${d.Bank}</td>
+      <td>${d.Nominal}</td><td>${d["Fee Admin"]}</td><td>${d.Total}</td><td>${d.Margin}</td>
+    </tr>`;
+  });
+
+  // Tarik Tunai
+  const dataTarik = JSON.parse(localStorage.getItem('tarikData')) || [];
+  const tbodyTarik = document.querySelector('#tableTarik tbody');
+  tbodyTarik.innerHTML = '';
+  dataTarik.forEach(d => {
+    tbodyTarik.innerHTML += `<tr>
+      <td>${d.No}</td><td>${d.Tanggal}</td><td>${d.Keterangan || ''}</td>
+      <td>${d.Nominal}</td><td>${d.Admin}</td><td>${d.Total}</td>
+    </tr>`;
+  });
+
+    // Pengeluaran
+  const dataKeluar = JSON.parse(localStorage.getItem('keluarData')) || [];
+  const tbodyKeluar = document.querySelector('#tableKeluar tbody');
+  tbodyKeluar.innerHTML = '';
+  dataKeluar.forEach((d, i) => {
+    tbodyKeluar.innerHTML += `<tr>
+      <td>${i + 1}</td><td>${d.Keterangan}</td><td>${d.Pengeluaran || ""}</td><td>${d.Pemasukan || ""}</td>
+    </tr>`;
+  });
+  const totalPemasukan = dataKeluar.reduce((sum, d) => sum + parseFloat(d.Pemasukan || 0), 0);
+  const totalPengeluaran = dataKeluar.reduce((sum, d) => sum + parseFloat(d.Pengeluaran || 0), 0);
+  document.getElementById('totalKeluar').innerText =
+    `Total Pemasukan: Rp ${totalPemasukan.toLocaleString('id-ID')} | Total Pengeluaran: Rp ${totalPengeluaran.toLocaleString('id-ID')}`;
+
+// Total Pulsa
+const totalHJ = dataPulsa.reduce((sum, d) => sum + parseFloat(d["Harga Jual"] || 0), 0);
+document.getElementById('totalPulsa').innerText = `Total Harga Jual: Rp ${totalHJ.toLocaleString('id-ID')}`;
+
+// Total TF
+const totalNominalTF = dataTF.reduce((sum, d) => sum + parseFloat(d["Nominal"] || 0), 0);
+const totalTotalTF = dataTF.reduce((sum, d) => sum + parseFloat(d["Total"] || 0), 0);
+document.getElementById('totalTF').innerText =
+  `Total Nominal: Rp ${totalNominalTF.toLocaleString('id-ID')} | Total: Rp ${totalTotalTF.toLocaleString('id-ID')}`;
+
+// Total Tarik Tunai
+const totalNominalTarik = dataTarik.reduce((sum, d) => sum + parseFloat(d["Nominal"] || 0), 0);
+const totalAdminTarik = dataTarik.reduce((sum, d) => sum + parseFloat(d["Admin"] || 0), 0);
+document.getElementById('totalTarik').innerText =
+  `Total Nominal: Rp ${totalNominalTarik.toLocaleString('id-ID')} | Total Admin: Rp ${totalAdminTarik.toLocaleString('id-ID')}`;
+}
+
+function exportSemuaData() {
+  const wb = XLSX.utils.book_new();
+
+  const dataPulsa = JSON.parse(localStorage.getItem('pulsaData')) || [];
+  const dataTF = JSON.parse(localStorage.getItem('tfData')) || [];
+  const dataTarik = JSON.parse(localStorage.getItem('tarikData')) || [];
+
+  // Pulsa Sheet
+  const pulsaSheet = dataPulsa.map(d => [d.No, d.Tanggal, d["No HP"], d.Denom, d.Via, d["Harga Jual"], d.Modal, d.Laba]);
+  const rowPulsa = pulsaSheet.length + 1;
+  pulsaSheet.unshift(["No", "Tanggal", "No HP", "Denom","via", "Harga Jual", "Modal", "Laba"]);
+  pulsaSheet.push(["Total", "", "", "", "",{ f: `SUM(F2:F${rowPulsa})` }, "", { f: `SUM(H2:H${rowPulsa})` }]);
+  const wsPulsa = XLSX.utils.aoa_to_sheet(pulsaSheet);
+  XLSX.utils.book_append_sheet(wb, wsPulsa, 'Penjualan Pulsa');
+
+  // TF Sheet
+  const tfSheet = dataTF.map(d => [d.No, d.Tanggal, d["No HP"], d.Bank, d.Nominal, d["Fee Admin"], d.Total, d.Margin]);
+  const rowTF = tfSheet.length + 1;
+  tfSheet.unshift(["No", "Tanggal", "Penyetor", "Bank", "Nominal", "Fee Admin", "Total", "Margin"]);
+  tfSheet.push(["Total", "", "", "", { f: `SUM(E2:E${rowTF})` }, { f: `SUM(F2:F${rowTF})` }, { f: `SUM(G2:G${rowTF})` }, { f: `SUM(H2:H${rowTF})` }]);
+  const wsTF = XLSX.utils.aoa_to_sheet(tfSheet);
+  XLSX.utils.book_append_sheet(wb, wsTF, 'Transaksi TF');
+
+  // Tarik Tunai Sheet
+  const tarikSheet = dataTarik.map(d => [d.No, d.Tanggal, d.Keterangan || '', d.Nominal, d.Admin, d.Total]);
+  const rowTarik = tarikSheet.length + 1;
+  tarikSheet.unshift(["No", "Tanggal", "Keterangan", "Nominal", "Admin", "Total"]);
+  tarikSheet.push(["Total", "", "", { f: `SUM(D2:D${rowTarik})` }, { f: `SUM(E2:E${rowTarik})` }, { f: `SUM(F2:F${rowTarik})` }]);
+  const wsTarik = XLSX.utils.aoa_to_sheet(tarikSheet);
+  XLSX.utils.book_append_sheet(wb, wsTarik, 'Tarik Tunai');
+
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  const filename = `Transaksi (${yyyy}-${mm}-${dd}).xlsx`;
+
+  const dataKeluar = JSON.parse(localStorage.getItem('keluarData')) || [];
+  const keluarSheet = dataKeluar.map((d, i) => [i + 1, d.Keterangan, d.Pengeluaran, d.Pemasukan]);
+  const rowKeluar = keluarSheet.length + 1;
+  keluarSheet.unshift(["No", "Keterangan", "Pengeluaran", "Pemasukan"]);
+  keluarSheet.push(["Total", "", { f: `SUM(C2:C${rowKeluar})` }, { f: `SUM(D2:D${rowKeluar})` }]);
+  const wsKeluar = XLSX.utils.aoa_to_sheet(keluarSheet);
+  XLSX.utils.book_append_sheet(wb, wsKeluar, 'Pengeluaran');
+
+
+  XLSX.writeFile(wb, filename);
+}
+
+window.onload = loadData;
+function importDariExcel() {
+  const fileInput = document.getElementById('fileInput');
+  const file = fileInput.files[0];
+  if (!file) {
+    alert('Silakan pilih file Excel terlebih dahulu.');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const data = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data, { type: 'array' });
+
+    // Cek dan proses setiap sheet
+    const newPulsa = [], newTF = [], newTarik = [];
+
+    if (workbook.SheetNames.includes('Penjualan Pulsa')) {
+      const pulsaSheet = XLSX.utils.sheet_to_json(workbook.Sheets['Penjualan Pulsa'], { defval: '' });
+      pulsaSheet.forEach((row, i) => {
+        if (i >= pulsaSheet.length - 1) return; // skip baris total
+        newPulsa.push({
+          No: i + 1,
+          Tanggal: row['Tanggal'],
+          "No HP": row['No HP'],
+          Denom: row['Denom'],
+          Via: row['via'] || row['Via'] || '',
+          "Harga Jual": row['Harga Jual'],
+          Modal: row['Modal'],
+          Laba: row['Laba']
+        });
+      });
+      localStorage.setItem('pulsaData', JSON.stringify(newPulsa));
+    }
+
+    if (workbook.SheetNames.includes('Transaksi TF')) {
+      const tfSheet = XLSX.utils.sheet_to_json(workbook.Sheets['Transaksi TF'], { defval: '' });
+      tfSheet.forEach((row, i) => {
+        if (i >= tfSheet.length - 1) return;
+        newTF.push({
+          No: i + 1,
+          Tanggal: row['Tanggal'],
+          "No HP": row['Penyetor'],
+          Bank: row['Bank'],
+          Nominal: row['Nominal'],
+          "Fee Admin": row['Fee Admin'],
+          Total: row['Total'],
+          Margin: row['Margin']
+        });
+      });
+      localStorage.setItem('tfData', JSON.stringify(newTF));
+    }
+
+    if (workbook.SheetNames.includes('Tarik Tunai')) {
+      const tarikSheet = XLSX.utils.sheet_to_json(workbook.Sheets['Tarik Tunai'], { defval: '' });
+      tarikSheet.forEach((row, i) => {
+        if (i >= tarikSheet.length - 1) return;
+        newTarik.push({
+          No: i + 1,
+          Tanggal: row['Tanggal'],
+          Keterangan: row['Keterangan'],
+          Nominal: row['Nominal'],
+          Admin: row['Admin'],
+          Total: row['Total']
+        });
+      });
+      localStorage.setItem('tarikData', JSON.stringify(newTarik));
+    }
+
+    if (workbook.SheetNames.includes('Pengeluaran')) {
+  const keluarSheet = XLSX.utils.sheet_to_json(workbook.Sheets['Pengeluaran'], { defval: '' });
+  const newKeluar = keluarSheet.slice(1, -1).map((row, i) => ({
+    Keterangan: row['Keterangan'],
+    Pemasukan: row['Pemasukan'],
+    Pengeluaran: row['Pengeluaran']
+  }));
+  localStorage.setItem('keluarData', JSON.stringify(newKeluar));
+}
+
+
+    alert('Data berhasil diimpor!');
+    loadData(); // Perbarui tampilan
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+function hapusSemuaData() {
+  const konfirmasi = confirm('Yakin ingin menghapus SEMUA data transaksi? Tindakan ini tidak bisa dibatalkan!');
+  if (konfirmasi) {
+    localStorage.removeItem('pulsaData');
+    localStorage.removeItem('tfData');
+    localStorage.removeItem('tarikData');
+    localStorage.removeItem('keluarData');
+    loadData(); // Reload tabel jadi kosong
+    alert('Semua data berhasil dihapus.');
+  }
+}
+function backupKeDatabase() {
+  const lama = JSON.parse(localStorage.getItem('databaseData')) || {
+    pulsaData: [],
+    tfData: [],
+    tarikData: [],
+    keluarData: []
+  };
+
+  const baru = {
+    pulsaData: JSON.parse(localStorage.getItem('pulsaData')) || [],
+    tfData: JSON.parse(localStorage.getItem('tfData')) || [],
+    tarikData: JSON.parse(localStorage.getItem('tarikData')) || [],
+    keluarData: JSON.parse(localStorage.getItem('keluarData')) || []
+  };
+
+  // Gabungkan data lama dan baru
+  const gabungan = {
+    pulsaData: [...lama.pulsaData, ...baru.pulsaData],
+    tfData: [...lama.tfData, ...baru.tfData],
+    tarikData: [...lama.tarikData, ...baru.tarikData],
+    keluarData: [...lama.keluarData, ...baru.keluarData]
+  };
+
+  localStorage.setItem('databaseData', JSON.stringify(gabungan));
+  alert('Data berhasil ditambahkan ke database.html!');
+}
+
+</script>
+
+</body>
+</html>
